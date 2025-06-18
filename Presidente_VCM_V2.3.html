@@ -1,0 +1,1791 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presidente VCM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cabin&family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cabin', 'Poppins', sans-serif;
+            background-color: #f1f5f9; /* slate-100 */
+            color: #1e293b; /* slate-800 */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        [contenteditable="true"]:focus {
+            outline: 2px solid #5b21b6; /* violet-800 */
+            border-radius: 4px;
+        }
+        .timer-display {
+            font-variant-numeric: tabular-nums;
+        }
+        .jw-header {
+            background-color: #5b21b6; /* violet-800 */
+        }
+        .jw-header h1 {
+            font-family: 'Poppins', sans-serif;
+        }
+        .jw-section-title {
+            font-family: 'Poppins', sans-serif;
+            color: white;
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 700;
+            padding: 0.75rem 1.5rem; /* p-3 px-6 */
+            border-radius: 0.5rem 0.5rem 0 0; /* rounded-t-lg */
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem; /* gap-3 */
+            cursor: pointer;
+        }
+        .jw-section-title .title-text {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .jw-section-title .chevron-icon {
+            transition: transform 0.3s ease;
+        }
+        .jw-section-title.collapsed .chevron-icon {
+            transform: rotate(-90deg);
+        }
+
+        /* Colori titoli sezione con contrasto migliorato */
+        .jw-section-title.bg-cyan-600 { background-color: #0e7490; } /* cyan-700 */
+        .jw-section-title.bg-amber-600 { background-color: #b45309; } /* amber-700 */
+        .jw-section-title.bg-red-800 { background-color: #991b1b; }
+        .jw-section-title.bg-violet-800 { background-color: #5b21b6; }
+
+        .jw-card {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+        .draggable-part {
+            position: relative;
+        }
+        .drag-handle {
+            cursor: grab;
+            position: absolute;
+            top: 50%;
+            left: -20px;
+            transform: translateY(-50%);
+            color: #475569; /* slate-600 */
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .draggable-part:hover .drag-handle {
+            opacity: 1;
+        }
+        .dragging {
+            opacity: 0.5;
+            background-color: #ede9fe; /* violet-100 */
+        }
+        /* Stili Quill.js */
+        .ql-toolbar {
+            border-top-left-radius: 0.375rem;
+            border-top-right-radius: 0.375rem;
+            border-color: #d1d5db !important;
+            background-color: #f8fafc;
+        }
+        .ql-container {
+             border-bottom-left-radius: 0.375rem;
+             border-bottom-right-radius: 0.375rem;
+             border-color: #d1d5db !important;
+             min-height: 120px;
+        }
+        .ql-container.live-mode {
+            border-color: transparent !important;
+        }
+        .ql-editor {
+            min-height: 120px;
+            font-family: 'Cabin', sans-serif;
+            font-size: 12pt;
+        }
+        /* Simple editable area */
+         .editable-textarea {
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            padding: 0.75rem;
+            min-height: 80px;
+            width: 100%;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-family: 'Cabin', sans-serif;
+            font-size: 12pt;
+        }
+        .editable-textarea:focus {
+            border-color: #5b21b6;
+            box-shadow: 0 0 0 1px #5b21b6;
+            outline: none;
+        }
+        
+        /* Stili per la stampa (esportazione PDF) */
+        @media screen {
+            #print-area {
+                display: none;
+            }
+        }
+        @media print {
+            body > :not(#print-area) {
+                display: none;
+            }
+            #print-area {
+                display: block;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+        }
+        
+        /* Stili Notifiche Toast */
+        #toast-container {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .toast {
+            min-width: 300px;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            animation: toast-in 0.3s ease-out forwards;
+        }
+        .toast.toast-error { background-color: #ef4444; }
+        .toast.toast-success { background-color: #22c55e; }
+        .toast.toast-info { background-color: #3b82f6; }
+        @keyframes toast-in {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Stili Timer Circolare */
+        .timer-circular-progress {
+            position: relative;
+            width: 70px;
+            height: 70px;
+        }
+        .timer-circular-progress svg {
+            transform: rotate(-90deg);
+        }
+        .timer-circular-progress .progress-bg {
+            stroke: #e5e7eb;
+        }
+        .timer-circular-progress .progress-bar {
+            stroke: #22c55e;
+            transition: stroke-dashoffset 1s linear, stroke 0.5s ease;
+        }
+        .timer-circular-progress .progress-bar.color-yellow {
+            stroke: #f59e0b;
+        }
+        .timer-circular-progress .progress-bar.color-red {
+            stroke: #ef4444;
+        }
+        .timer-circular-progress .timer-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.125rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        /* Barra di avanzamento generale */
+        .progress-marker {
+            position: absolute;
+            top: -4px;
+            bottom: -4px;
+            width: 3px;
+            background-color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+        }
+        .progress-marker .marker-tooltip {
+            visibility: hidden;
+            width: 120px;
+            background-color: #374151;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 0;
+            position: absolute;
+            z-index: 1;
+            bottom: 150%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .progress-marker:hover .marker-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+    </div>
+    
+    <div id="print-area"></div>
+    
+    <div id="toast-container"></div>
+    
+    <div id="edit-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 id="modal-title" class="text-xl font-bold mb-4 text-slate-800">Modifica Dati</h3>
+            <div id="modal-content" class="space-y-4"></div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button id="modal-close-btn" class="bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-lg hover:bg-slate-300">Annulla</button>
+                <button id="modal-save-btn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700">Salva Modifiche</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <script>
+    // Funzione per gestire le icone SVG
+    const icons = {
+        userTie: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="inline-block h-8 w-8"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z M11 15h2l-1 2.5-1-2.5z"/></svg>`,
+        gem: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-7 h-7"><path d="M12 2L3 9l9 12 9-12z"/><path d="M3 9h18"/><path d="M12 2L7 9m10 0L12 2"/></svg>`,
+        bookOpen: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="inline-block h-6 w-6"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
+        wheat: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-7 h-7"><path d="M12 2v20 M16 6l-4 4-4-4 M16 12l-4 4-4-4 M16 18l-4 4-4-4"/></svg>`,
+        sheep: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="w-7 h-7"><g stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M18.5,17 C20.4,17 21.5,15.4 21.5,13.5 C21.5,11.6 20.1,10 18.2,10 C17.8,10 17.5,10.1 17.2,10.2 C16.5,8.5 14.9,7 13,7 C10.9,7 9.1,8.6 8.6,10.6 C8.5,10.6 8.4,10.5 8.2,10.5 C6.3,10.5 4.8,12 4.8,13.8 C4.8,15.5 6.2,17 8,17 H18.5z" stroke="#b91c1c" fill="#fee2e2"/><g fill="#44403c" stroke="#44403c"><path d="M7,12 C7,9.5 5.5,8 4,8 C2.5,8 1,9.5 1,12C1,14.5 2.5,15.5 4,15.5 C5.5,15.5 6.5,14,7,12z"/><path d="M7 17v3M10 17v3M13 17v3M16 17v3"/></g><circle cx="4" cy="11.5" r="0.5" fill="white"/></g></svg>`,
+        plus: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
+        minus: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
+        play: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-play-fill" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>`,
+        pause: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pause-fill" viewBox="0 0 16 16"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>`,
+        stop: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-stop-fill" viewBox="0 0 16 16"><path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/></svg>`,
+        reset: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/></svg>`,
+        trash: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`,
+        info: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+        calendar: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+        microphone: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="inline-block h-6 w-6"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`,
+        grip: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>`,
+        bold: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>`,
+        italic: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>`,
+        underline: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg>`,
+        clock: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
+        playCircle: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>`,
+        chevronDown: `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>`,
+        paperclip: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`,
+        edit: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`
+    };
+
+    // Funzione per mostrare notifiche "Toast"
+    function showToast(message, type = 'info', duration = 3000) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => {
+            if (container.contains(toast)) {
+                container.removeChild(toast);
+            }
+        }, duration);
+    }
+
+    // Funzione per aprire un data URI in una nuova scheda in modo efficiente
+    async function openDataUriInNewTab(dataURI) {
+        try {
+            const response = await fetch(dataURI);
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            window.open(objectUrl, '_blank');
+            // Il browser revoca l'URL dell'oggetto quando la scheda viene chiusa, quindi non è necessario farlo manualmente qui.
+        } catch (error) {
+            console.error("Errore nell'apertura dell'allegato:", error);
+            showToast("Impossibile aprire l'allegato.", "error");
+        }
+    }
+
+    // --- LOGICA MODALE DI MODIFICA ---
+    let onSaveCallback = null;
+    function showEditModal(title, content, onSave) {
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-content').innerHTML = content;
+        onSaveCallback = onSave;
+        document.getElementById('edit-modal').classList.remove('hidden');
+    }
+
+    function hideEditModal() {
+        document.getElementById('edit-modal').classList.add('hidden');
+        onSaveCallback = null;
+    }
+
+
+    // Stato globale per i timer per gestirli al di fuori dello stato principale dell'app
+    let activeTimers = {};
+    let mainTimerInterval = null;
+
+    // Stato iniziale dell'applicazione
+    const getInitialState = () => ({
+        liveMode: false,
+        currentlyHighlighted: null,
+        supervisorVisit: false,
+        collapsedSections: {
+            introduzione: false,
+            tesori: false,
+            ministero: false,
+            vitaCristiana: false,
+            riepilogo: false
+        },
+        mainTimer: {
+            totalMinutes: 105,
+            remainingSeconds: 105 * 60,
+            running: false
+        },
+        partecipanti: ["MASSIMILIANO FULCINITI", "DAVIDE ZAINAGHI", "DAVIDE PASTORE", "DANIEL ARRABITO", "DESIRÉE OLIONI", "ILARIA ZAINAGHI", "MARIA SALA", "ROSANNA TURRICIANO", "LAURA ARDIN", "JESSICA MALASOMMA", "ALESSANDRO PASTORE", "GIANNI DI MARCO", "DAVIDE ZUIN", "VINCENZO NOCCIOLA"],
+        cantici: [
+            { numero: 21, titolo: "Continuiamo a cercare prima il Regno" },
+            { numero: 57, titolo: "Predichiamo a tutti" },
+            { numero: 101, titolo: "Collaboriamo in unità" },
+        ],
+        puntiLettura: [
+            { id: 1, nome: "Punto 1", descrizione: "Descrizione punto 1" },
+            { id: 5, nome: "Lettura accurata", descrizione: "Hai letto in maniera chiara, rispettando la punteggiatura e dando la giusta enfasi. Questo ci ha permesso di apprezzare pienamente il brano biblico. Ottimo lavoro! Questo ci mostra quanto sia preziosa la lettura accurata: ci aiuta tutti ad apprezzare pienamente le verità contenute nella Parola di Dio." },
+        ],
+        puntiMinistero: [
+            { id: 1, nome: "Lezione 1 - Interesse", descrizione: "4. Sii un acuto osservatore. Chiediti: “Cosa sta facendo la persona? Quali potrebbero essere i suoi pensieri o le sue preoccupazioni in questo momento?”\n“In che cosa crede? Da quale ambiente proviene? Cosa rivelano il suo abbigliamento, il suo aspetto e la sua casa?” “È un buon momento per parlare con lei?”" },
+            { id: 4, nome: "Lezione 4 - Umiltà", descrizione: "3. Evita di avere un atteggiamento di superiorità. Non dare l’impressione di sapere tutto tu. Esprimiti con rispetto." },
+            { id: 5, nome: "Lezione 5 - Tatto", descrizione: "4. Non correggere subito la persona. Lascia che si esprima liberamente. Se dice qualcosa che è contrario a quello che insegna la Bibbia, non metterti a discutere (Giac. 1:19). Se la ascolti, capirai meglio in cosa crede (Prov. 20:5)." },
+            { id: 9, nome: "Lezione 9 - Empatia", descrizione: "3. Ascolta con attenzione. Lascia che la persona si esprima. Non interromperla. Interessati veramente dei suoi sentimenti, delle sue preoccupazioni e delle sue opinioni; non ignorarli. Se la ascolti con attenzione, le dimostri che quello che pensa ti sta a cuore." },
+        ],
+        timers: {},
+        programma: {
+            dataAdunanza: "",
+            canticoIniziale: { numero: 101, titolo: "Collaboriamo in unità" },
+            preghieraIniziale: "MASSIMILIANO FULCINITI",
+            introduzione: "Il programma di stasera sarà ricco di consigli pratici che ci aiuteranno nella nostra vita e nel nostro ministero.<br><br>Attraverso la parte dei TESORI, considereremo alcuni punti importanti: come provare soddisfazione quando svolgiamo un lavoro, l'invito a non sprecare tempo in cose inutili, l'importanza di lavorare con impegno ed essere diligenti, tenendo il lavoro al posto giusto.<br><br>Nella parte EFFICACI NEL MINISTERO vedremo in pratica alcuni suggerimenti utili per aiutare più persone a conoscere Geova.<br><br>Infine, nella sezione VITA CRISTIANA parleremo dell’instabilità economica a cui siamo confrontati, non per trovare soluzioni, ma per ricevere appropriati consigli su come affrontare le ansie che possiamo avere riguardo ai soldi, al lavoro e al futuro.<br><br>Nello studio biblico di congregazione inizieremo il capitolo 26 e vedremo come Paolo, durante il suo viaggio verso Roma, continua a dimostrare grande fede e amore per il prossimo cogliendo ogni occasione per dare testimonianza.",
+            tesori: {
+                discorso: { tema: "Lavorare sodo dà soddisfazione", oratore: "DAVIDE ZAINAGHI", durata: 10 },
+                gemme: { conduttore: "DAVIDE PASTORE", durata: 10 },
+                lettura: { lettore: "DANIEL ARRABITO", brano: "Pr 12:1-20", punto: 5, commento: "Grazie Daniel. Dalla tua lettura si è visto che hai messo in pratica in modo eccellente i suggerimenti della Lezione 5, Lettura accurata. Hai letto in maniera chiara, rispettando la punteggiatura e dando la giusta enfasi. Questo ci ha permesso di apprezzare pienamente il brano biblico. Ottimo lavoro!", durata: 4 }
+            },
+            canticoIntermedio: { numero: 21, titolo: "Continuiamo a cercare prima il Regno" },
+            ministero: [
+                { id: 1, tipo: "Iniziare una conversazione", studente: "DESIRÉE OLIONI", assistente: "ILARIA ZAINAGHI", durata: 2, contesto: "DI CASA IN CASA.", punto: 1, commento: "Dovevi osservare la qualità Ama le persone. Fai discepoli - Lezione 1 - Interesse verso gli altri" },
+                { id: 2, tipo: "Iniziare una conversazione", studente: "MARIA SALA", assistente: "ROSANNA TURRICIANO", durata: 3, contesto: "DI CASA IN CASA. Offri un corso biblico.", punto: 5, commento: "Dovevi osservare la qualità Ama le persone. Fai discepoli - Lezione 5 - Tatto" },
+                { id: 3, tipo: "Coltivare l’interesse", studente: "LAURA ARDIN", assistente: "JESSICA MALASOMMA", durata: 3, contesto: "TESTIMONIANZA INFORMALE. Fai vedere il nostro sito a un genitore.", punto: 9, commento: "Dovevi osservare la qualità Ama le persone. Fai discepoli - Lezione 9 – Empatia" },
+                { id: 4, tipo: "Spiegare quello in cui si crede", studente: "ALESSANDRO PASTORE", assistente: "GIANNI DI MARCO", durata: 3, contesto: "Dimostrazione. Tema: Credete che la vostra sia l’unica vera religione?", punto: 4, commento: "Dovevi osservare la qualità Ama le persone. Fai discepoli - Lezione 4 – Umiltà" }
+            ],
+            vitaCristiana: [
+                { id: 1, tipo: "Parte", tema: "Affrontiamo l’instabilità economica con l’aiuto di Geova", conduttore: "DAVIDE ZUIN", durata: 15 },
+                { id: 2, tipo: "Studio Biblico", tema: "Studio Biblico di Congregazione", conduttore: "VINCENZO NOCCIOLA", durata: 30 }
+            ],
+            riepilogo: "Al termine di questa adunanza, siamo gioiosi e vogliamo lodare Geova di cuore per questi bei doni che ci ha fatto!<br><br>Nella parte TESORI, abbiamo considerato alcuni aspetti importanti che ci mostrano come provare soddisfazione nel lavoro onesto. Ci è stato ricordato di non sprecare il nostro tempo in cose futili, di lavorare sodo ed essere diligenti, tenendo sempre il lavoro al posto giusto nella nostra vita.<br><br>Nella sezione VITA CRISTIANA, abbiamo ricordato che, nonostante l’instabilità economica a cui siamo confrontati, Geova ci dà un’ulteriore rassicurazione: se lo mettiamo al primo posto nella nostra vita, si prenderà cura delle nostre necessità, anche quando tutto sembra sempre più difficile. Vogliamo confidare pienamente nel suo aiuto.<br><br>Siamo grati per tutti questi preziosi insegnamenti che ci aiutano ad affrontare le sfide della vita e a rimanere saldi nel servizio a Geova!",
+            anticipazioni: "La prossima settimana, ci concentreremo su un interessante contrasto che troviamo nel capitolo 13 di Proverbi: La Bibbia ci parla infatti della 'lampada dei malvagi' che acceca e della 'luce dei giusti' che splende.<br><br>Vedremo cosa significa essere accecati dalla 'lampada dei malvagi', e come fare per camminare nella 'luce dei giusti'.<br><br>Capiremo insieme perché è cruciale fare questa distinzione, e soprattutto quale luce dovremmo sforzarci di seguire nella nostra vita.",
+            annunci: {
+                testo: "Vogliamo ora prestare attenzione ad alcuni annunci:\n- S-147 maggio 2025",
+                allegati: []
+            },
+            canticoFinale: { numero: 57, titolo: "Predichiamo a tutti" },
+            preghieraFinale: ""
+        }
+    });
+    
+    let state = {};
+    const appContainer = document.getElementById('app');
+    let quillInstances = {};
+    
+    // --- FUNZIONI DI GESTIONE DELLO STATO ---
+    function saveState() {
+        try {
+            const stateToSave = JSON.parse(JSON.stringify(state));
+            // Assicura che i timer non vengano salvati come "in esecuzione"
+            Object.keys(stateToSave.timers).forEach(id => {
+                if(stateToSave.timers[id]) {
+                     stateToSave.timers[id].running = false; 
+                }
+            });
+            if(stateToSave.mainTimer) {
+                stateToSave.mainTimer.running = false;
+            }
+            localStorage.setItem('presidenteVCMState', JSON.stringify(stateToSave));
+        } catch (e) {
+            console.error("Errore nel salvataggio dello stato:", e);
+        }
+    }
+
+    function loadState() {
+        const savedState = localStorage.getItem('presidenteVCMState');
+        if (savedState) {
+            try {
+                const loaded = JSON.parse(savedState);
+                
+                // Migrazione per la nuova struttura degli annunci
+                if (loaded.programma && typeof loaded.programma.annunci === 'string') {
+                    loaded.programma.annunci = {
+                        testo: loaded.programma.annunci,
+                        allegati: []
+                    };
+                }
+
+                // Assicura che i timer non partano al caricamento
+                if(loaded.mainTimer) loaded.mainTimer.running = false;
+                Object.values(loaded.timers || {}).forEach(t => { if(t) t.running = false; });
+                
+                state = deepMerge(getInitialState(), loaded);
+            } catch(e) {
+                console.error("Errore nel caricamento dello stato, ripristino stato iniziale:", e);
+                state = getInitialState();
+            }
+        } else {
+            state = getInitialState();
+        }
+    }
+
+    function deepMerge(target, source) {
+        const output = { ...target };
+        if (isObject(target) && isObject(source)) {
+            Object.keys(source).forEach(key => {
+                if (isObject(source[key]) && key in target && isObject(target[key])) {
+                     output[key] = deepMerge(target[key], source[key]);
+                } else {
+                     output[key] = source[key];
+                }
+            });
+        }
+        return output;
+    }
+
+    function isObject(item) {
+        return (item && typeof item === 'object' && !Array.isArray(item));
+    }
+    
+    function updateState(path, value, reRender = true) {
+        const pList = path.split('.');
+        let current = state;
+        for (let i = 0; i < pList.length - 1; i++) {
+            if (typeof current[pList[i]] === 'undefined') {
+                current[pList[i]] = {};
+            }
+            current = current[pList[i]];
+        }
+        current[pList[pList.length - 1]] = value;
+        saveState();
+        if (reRender) {
+             render();
+        }
+    }
+
+    function prepareNewWeek() {
+        if (!confirm("Sei sicuro di voler preparare una nuova settimana? Tutti i dati del programma attuale (nomi, temi, commenti) verranno cancellati.")) {
+            return;
+        }
+
+        const newState = JSON.parse(JSON.stringify(state));
+        const p = getInitialState().programma; // Usa un programma vuoto come modello
+
+        newState.programma.dataAdunanza = "";
+        newState.programma.preghieraIniziale = "";
+        newState.programma.introduzione = p.introduzione;
+        
+        newState.programma.tesori.discorso.tema = p.tesori.discorso.tema;
+        newState.programma.tesori.discorso.oratore = "";
+        newState.programma.tesori.gemme.conduttore = "";
+        newState.programma.tesori.lettura.lettore = "";
+        newState.programma.tesori.lettura.brano = p.tesori.lettura.brano;
+        newState.programma.tesori.lettura.commento = p.tesori.lettura.commento;
+
+        newState.programma.ministero.forEach(part => {
+            part.studente = "";
+            part.assistente = "";
+            part.contesto = "";
+            part.commento = "";
+        });
+
+        newState.programma.vitaCristiana.forEach(part => {
+             if (part.tipo === 'Studio Biblico') {
+                part.conduttore = ""; 
+                part.tema = getInitialState().programma.vitaCristiana.find(p => p.tipo === 'Studio Biblico').tema;
+             } else {
+                part.tema = "Nuova Parte";
+                part.conduttore = "";
+             }
+        });
+        
+        newState.programma.riepilogo = p.riepilogo;
+        newState.programma.anticipazioni = p.anticipazioni;
+        newState.programma.annunci = getInitialState().programma.annunci; // Ripristina l'oggetto annunci
+        newState.programma.preghieraFinale = "";
+        
+        state = newState;
+        saveState();
+        render();
+        showToast("Programma preparato per una nuova settimana.", "success");
+    }
+    
+    /**
+     * Trasforma i dati da un vecchio formato di backup a quello nuovo.
+     * Questo è necessario per garantire la retrocompatibilità.
+     * @param {object} oldData - L'oggetto stato dal vecchio file di backup.
+     * @returns {object} - L'oggetto stato convertito nel nuovo formato.
+     */
+    function transformOldBackup(oldData) {
+        console.log("Trasformazione di un vecchio backup in corso...");
+        const newState = getInitialState(); // Inizia con una struttura pulita del nuovo stato
+
+        // Copia le proprietà semplici che non sono cambiate
+        newState.liveMode = oldData.liveMode || false;
+        newState.supervisorVisit = oldData.supervisorVisit || false;
+        newState.partecipanti = oldData.partecipanti || newState.partecipanti;
+        newState.cantici = oldData.cantici || newState.cantici;
+        newState.puntiLettura = oldData.puntiLettura || newState.puntiLettura;
+        newState.puntiMinistero = oldData.puntiMinistero || newState.puntiMinistero;
+
+        const oldProgramma = oldData.programma;
+        if (!oldProgramma) return newState; // Se non c'è programma, non c'è nulla da fare
+
+        const newProgramma = newState.programma;
+
+        // Mappatura delle proprietà del programma
+        newProgramma.dataAdunanza = oldProgramma.dataAdunanza || "";
+        newProgramma.canticoIniziale = oldProgramma.canticoIniziale || newProgramma.canticoIniziale;
+        newProgramma.preghieraIniziale = oldProgramma.preghieraIniziale || "";
+        newProgramma.introduzione = oldProgramma.introduzione || "";
+        newProgramma.riepilogo = oldProgramma.riepilogo || "";
+        newProgramma.anticipazioni = oldProgramma.anticipazioni || "";
+        newProgramma.canticoIntermedio = oldProgramma.canticoIntermedio || newProgramma.canticoIntermedio;
+        newProgramma.canticoFinale = oldProgramma.canticoFinale || newProgramma.canticoFinale;
+        newProgramma.preghieraFinale = oldProgramma.preghieraFinale || "";
+
+        // Trasformazione della sezione annunci
+        if (typeof oldProgramma.annunci === 'string') {
+            newProgramma.annunci.testo = oldProgramma.annunci;
+            newProgramma.annunci.allegati = [];
+        } else if (typeof oldProgramma.annunci === 'object' && oldProgramma.annunci !== null) {
+            newProgramma.annunci = oldProgramma.annunci;
+             if (!newProgramma.annunci.allegati) {
+                newProgramma.annunci.allegati = []; // Assicura che la proprietà esista
+            }
+        }
+
+        // Trasformazione delle sezioni complesse
+        if (oldProgramma.tesori) newProgramma.tesori = oldProgramma.tesori;
+        if (oldProgramma.vitaCristiana) newProgramma.vitaCristiana = oldProgramma.vitaCristiana;
+        
+        // La sezione ministero potrebbe richiedere una mappatura più dettagliata
+        // se la struttura delle parti è cambiata significativamente.
+        // Per ora, assumiamo che la struttura sia simile.
+        if (oldProgramma.ministero && Array.isArray(oldProgramma.ministero)) {
+            newProgramma.ministero = oldProgramma.ministero.map((oldPart, index) => {
+                // Assicurati che ogni parte abbia un ID, essenziale per i timer.
+                return {
+                    id: oldPart.id || (1000 + index), // Assegna un ID di fallback
+                    tipo: oldPart.tipo || "Parte",
+                    studente: oldPart.studente || "",
+                    assistente: oldPart.assistente || "",
+                    durata: oldPart.durata || 3,
+                    contesto: oldPart.contesto || "",
+                    punto: oldPart.punto || null,
+                    commento: oldPart.commento || ""
+                };
+            });
+        }
+        
+        console.log("Trasformazione completata.");
+        return newState;
+    }
+
+    // --- FUNZIONI DI RENDERING (TEMPLATE) ---
+    const editable = (path, placeholder = "...") => {
+        const pathParts = path.split('.');
+        const value = pathParts.reduce((obj, key) => (obj && obj[key] !== 'undefined') ? obj[key] : '', state);
+        const editableClass = state.liveMode ? '' : 'hover:bg-indigo-100 focus:bg-indigo-200';
+        // For header date field
+        if (path === 'programma.dataAdunanza') {
+             return `<span contenteditable="${!state.liveMode}" data-path="${path}" class="editable-field p-1 -m-1 rounded-md ${state.liveMode ? '' : 'hover:bg-white/20 focus:bg-white/20'} transition-colors duration-200">${value || placeholder}</span>`;
+        }
+        return `<span contenteditable="${!state.liveMode}" data-path="${path}" class="editable-field p-1 -m-1 rounded-md ${editableClass} transition-colors duration-200">${value || placeholder}</span>`;
+    };
+    
+    const simpleEditable = (path, placeholder = "") => {
+        const pathParts = path.split('.');
+        const value = pathParts.reduce((obj, key) => (obj && obj[key] !== 'undefined') ? obj[key] : '', state);
+        if (state.liveMode) {
+            return `<div class="prose max-w-none prose-sm pt-1">${value || ''}</div>`;
+        }
+        return `<div contenteditable="true" data-path="${path}" class="editable-textarea prose max-w-none">${value || placeholder}</div>`;
+    }
+
+    const richEditable = (path) => {
+        return `<div class="quill-editor-container ${state.liveMode ? 'live-mode-quill' : ''}" data-path="${path}"></div>`;
+    };
+
+    const dropdown = (path, options, selectedValue, placeholder = "Seleziona") => {
+        if (state.liveMode) {
+            return `<span class="font-semibold text-indigo-700">${selectedValue || "..."}</span>`;
+        }
+        const optionsHTML = options.map(opt => `<option value="${opt}" ${opt === selectedValue ? 'selected' : ''}>${opt}</option>`).join('');
+        return `
+            <select data-path="${path}" class="p-2 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full">
+                <option value="">${placeholder}</option>
+                ${optionsHTML}
+            </select>`;
+    };
+
+    const canticoDropdown = (path, selectedNumero) => {
+        const cantico = state.cantici.find(c => c.numero == selectedNumero);
+        if (state.liveMode) {
+            return `<span class="font-semibold text-indigo-700">${cantico ? `Cantico ${cantico.numero}: ${cantico.titolo}`: '...'}</span>`;
+        }
+        const sortedCantici = [...state.cantici].sort((a, b) => a.numero - b.numero);
+        const optionsHTML = sortedCantici.map(c => `<option value="${c.numero}" ${c.numero == selectedNumero ? 'selected' : ''}>${c.numero} - ${c.titolo}</option>`).join('');
+        return `
+            <select data-path-numero="${path}.numero" data-path-titolo="${path}.titolo" class="cantico-select p-2 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full">
+                <option value="">Seleziona un cantico</option>
+                ${optionsHTML}
+            </select>`;
+    };
+    
+    const puntiDropdown = (path, options, selectedId, placeholder = "Seleziona punto") => {
+        const punto = options.find(p => p.id == selectedId);
+        if(state.liveMode) {
+            return `<span class="font-semibold text-indigo-700">${punto ? punto.nome : '...'}</span>`;
+        }
+        const optionsHTML = options.map(p => `<option value="${p.id}" ${p.id == selectedId ? 'selected' : ''}>${p.nome}</option>`).join('');
+        return `
+            <select data-path="${path}" class="p-2 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 w-full">
+                <option value="">${placeholder}</option>
+                ${optionsHTML}
+            </select>
+        `;
+    };
+
+    const durationControl = (path, value) => {
+        return `
+            <div class="flex items-center space-x-2">
+                ${!state.liveMode ? `<button data-path="${path}" data-op="minus" class="p-1 bg-slate-200 rounded-full hover:bg-slate-300 text-slate-600">${icons.minus}</button>` : ''}
+                <span class="font-bold w-6 text-center text-slate-700">${value}</span>
+                ${!state.liveMode ? `<button data-path="${path}" data-op="plus" class="p-1 bg-slate-200 rounded-full hover:bg-slate-300 text-slate-600">${icons.plus}</button>` : ''}
+                <span class="text-sm text-slate-500">min</span>
+            </div>
+        `;
+    };
+
+    const timerControl = (id, partDuration) => {
+        const timerState = state.timers[id] || { running: false, time: 0 };
+        const time = timerState.time || 0;
+        const radius = 30;
+        const circumference = 2 * Math.PI * radius;
+        const maxTime = (partDuration || 0) * 60;
+        const progress = maxTime > 0 ? Math.min(time / maxTime, 1) : 0;
+        const offset = circumference * (1 - progress);
+
+        let colorClass = 'color-green';
+        if (progress > 0.95) {
+            colorClass = 'color-red';
+        } else if (progress > 0.75) {
+            colorClass = 'color-yellow';
+        }
+
+        const minutes = String(Math.floor(time / 60)).padStart(2, '0');
+        const seconds = String(time % 60).padStart(2, '0');
+        
+        return `
+            <div class="flex items-center gap-2">
+                <div class="timer-circular-progress">
+                     <svg class="w-full h-full" viewBox="0 0 70 70">
+                        <circle class="progress-bg" cx="35" cy="35" r="${radius}" fill="transparent" stroke-width="6"></circle>
+                        <circle class="progress-bar ${colorClass}" data-timer-id="${id}"
+                                cx="35" cy="35" r="${radius}" fill="transparent" stroke-width="6"
+                                stroke-dasharray="${circumference}"
+                                style="stroke-dashoffset: ${offset}"
+                        ></circle>
+                    </svg>
+                    <div class="timer-text timer-display text-slate-700" data-timer-id="${id}">${minutes}:${seconds}</div>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <button data-timer-id="${id}" data-timer-op="toggle" class="p-1.5 rounded-full ${timerState.running ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-green-500 hover:bg-green-600'} text-white shadow-sm">${timerState.running ? icons.pause : icons.play}</button>
+                    <button data-timer-id="${id}" data-timer-op="reset" class="p-1.5 rounded-full bg-slate-400 hover:bg-slate-500 text-white shadow-sm">${icons.reset}</button>
+                </div>
+            </div>
+        `;
+    };
+
+    const highlightButton = (partId) => {
+        return `<button data-op="highlight" data-part-id="${partId}" class="text-blue-500 hover:text-blue-400 disabled:text-blue-300 transition-colors" title="Evidenzia questa parte">${icons.playCircle}</button>`;
+    }
+    
+    function formatTime(totalSeconds) {
+        if (totalSeconds < 0) totalSeconds = 0;
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    const headerTemplate = () => {
+        const mt = state.mainTimer;
+        const timeFormatted = formatTime(mt.remainingSeconds);
+        
+        return `
+        <header class="jw-header text-white p-4 rounded-lg shadow-lg mb-8">
+            <div class="flex flex-col sm:flex-row justify-between items-start space-y-4 sm:space-y-0">
+                <div class="flex-1">
+                    <div class="flex items-center space-x-4">
+                        ${icons.userTie}
+                        <h1 class="text-2xl md:text-3xl font-bold">Presidente VCM</h1>
+                    </div>
+                     <div class="mt-4 text-left text-lg">
+                        <span class="inline-flex items-center gap-2 p-1 rounded-md focus-within:bg-white/20">
+                            ${icons.calendar}
+                            ${editable('programma.dataAdunanza', 'Settimana del...')}
+                        </span>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end gap-y-2">
+                     <div class="flex items-center space-x-2">
+                        <span class="text-sm font-medium">Modalità In Diretta</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" id="live-mode-toggle" class="sr-only peer" ${state.liveMode ? 'checked' : ''}>
+                          <div class="w-11 h-6 bg-slate-400 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                     <div class="flex items-center space-x-2">
+                        <span class="text-sm font-medium">Visita Sorvegliante</span>
+                         <label class="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" id="supervisor-toggle" class="sr-only peer" ${state.supervisorVisit ? 'checked' : ''} ${state.liveMode ? 'disabled' : ''}>
+                          <div class="w-11 h-6 bg-slate-400 rounded-full peer peer-focus:ring-4 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-white/20">
+                <h2 class="text-center text-lg font-semibold mb-2">Timer Generale Adunanza</h2>
+                <div class="flex items-center justify-center gap-4">
+                    ${!state.liveMode ? `
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="main-timer-duration-input" class="bg-white/20 rounded-md p-2 w-24 text-center text-lg font-bold" value="${mt.totalMinutes}">
+                            <span class="font-medium">min</span>
+                        </div>
+                    ` : ''}
+                    <div id="main-timer-display" class="text-4xl font-bold timer-display">${timeFormatted}</div>
+                    <div class="flex items-center gap-2">
+                        <button data-op="main-timer-toggle" class="p-2.5 rounded-full ${mt.running ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-green-500 hover:bg-green-600'} text-white shadow-lg">${mt.running ? icons.pause : icons.play}</button>
+                        <button data-op="main-timer-reset" class="p-2.5 rounded-full bg-slate-400 hover:bg-slate-500 text-white shadow-lg">${icons.reset}</button>
+                    </div>
+                </div>
+            </div>
+
+            ${!state.liveMode ? `<div class="mt-6 flex flex-wrap gap-2 justify-center md:justify-start border-t border-white/20 pt-4">
+                 <button id="new-week-btn" class="bg-gray-500/80 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg text-sm">Prepara Settimana</button>
+                 <button id="save-btn" class="bg-blue-500/80 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg text-sm">Salva Modifiche</button>
+                 <button id="backup-btn" class="bg-white/10 hover:bg-white/20 text-white font-bold py-2 px-4 rounded-lg text-sm">Backup Dati</button>
+                <button onclick="document.getElementById('restore-input').click()" class="bg-white/10 hover:bg-white/20 text-white font-bold py-2 px-4 rounded-lg text-sm">Ripristina Dati</button>
+                <input type="file" id="restore-input" class="hidden" accept=".json">
+                <button onclick="document.getElementById('restore-old-input').click()" class="bg-amber-500/80 hover:bg-amber-500 text-white font-bold py-2 px-4 rounded-lg text-sm">Carica Vecchio Backup</button>
+                <input type="file" id="restore-old-input" class="hidden" accept=".json,.txt">
+                 <button id="export-pdf-btn" class="bg-green-500/80 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg text-sm">Esporta PDF</button>
+            </div>` : ''}
+        </header>
+    `;
+    };
+
+    const progressBarTemplate = () => {
+        const p = state.programma;
+        const totalDurationSeconds = (state.mainTimer.totalMinutes || 105) * 60;
+        
+        let cumulativeTime = 0;
+        const markers = [];
+        
+        // Durate assunte per le parti non cronometrate, basate sull'input dell'utente
+        const introDuration = 1 * 60; 
+        const songDuration = 4 * 60; // Durata standard per un cantico
+        
+        cumulativeTime += introDuration;
+        
+        // Tesori
+        cumulativeTime += (p.tesori.discorso.durata + p.tesori.gemme.durata + p.tesori.lettura.durata) * 60;
+        markers.push({ percent: (cumulativeTime / totalDurationSeconds) * 100, label: 'Fine Tesori' });
+        
+        // Ministero
+        cumulativeTime += p.ministero.reduce((sum, part) => sum + (part.durata || 0), 0) * 60;
+        markers.push({ percent: (cumulativeTime / totalDurationSeconds) * 100, label: 'Fine Ministero' });
+        
+        // Cantico intermedio
+        cumulativeTime += songDuration;
+        markers.push({ percent: (cumulativeTime / totalDurationSeconds) * 100, label: 'Fine Cantico' });
+        
+        // Vita Cristiana
+        cumulativeTime += p.vitaCristiana.reduce((sum, part) => sum + (part.durata || 0), 0) * 60;
+        markers.push({ percent: (cumulativeTime / totalDurationSeconds) * 100, label: 'Fine Vita Cristiana' });
+
+        const elapsedSeconds = totalDurationSeconds - state.mainTimer.remainingSeconds;
+        const progressPercent = (elapsedSeconds / totalDurationSeconds) * 100;
+        
+        return `
+            <div class="mb-8">
+                <div class="progress-container bg-slate-300 rounded-full h-2.5 relative">
+                    <div id="main-progress-bar" class="bg-violet-600 h-2.5 rounded-full" style="width: ${progressPercent}%;"></div>
+                    ${markers.map(m => `
+                        <div class="progress-marker" style="left: ${m.percent}%;">
+                           <span class="marker-tooltip">${m.label}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    };
+
+    // ===== FUNZIONE RENDER PRINCIPALE =====
+    function render() {
+        const p = state.programma;
+        let partCounter = 1;
+
+        const template = `
+            ${headerTemplate()}
+            ${progressBarTemplate()}
+            <main class="space-y-8">
+                <div class="jw-card grid md:grid-cols-2 gap-6 p-6">
+                    <div>
+                         <h3 class="font-bold text-lg text-black mb-2">CANTICO INIZIALE</h3>
+                        ${canticoDropdown('programma.canticoIniziale', p.canticoIniziale.numero)}
+                    </div>
+                    <div>
+                         <h3 class="font-bold text-lg text-black mb-2">PREGHIERA INIZIALE</h3>
+                        ${dropdown('programma.preghieraIniziale', state.partecipanti, p.preghieraIniziale)}
+                    </div>
+                </div>
+
+                <div class="jw-card">
+                    <h2 class="jw-section-title bg-violet-800 ${state.collapsedSections.introduzione ? 'collapsed' : ''}" data-op="toggle-collapse" data-section-id="introduzione">
+                        <span class="title-text">${icons.microphone} INTRODUZIONE</span>
+                        <span class="chevron-icon">${icons.chevronDown}</span>
+                    </h2>
+                    <div class="p-6 ${state.collapsedSections.introduzione ? 'hidden' : ''}">
+                        <div class="${state.liveMode ? 'live-mode-quill' : ''}">${richEditable('programma.introduzione')}</div>
+                    </div>
+                </div>
+
+                <div class="jw-card">
+                    <h2 class="jw-section-title bg-cyan-600 ${state.collapsedSections.tesori ? 'collapsed' : ''}" data-op="toggle-collapse" data-section-id="tesori">
+                        <span class="title-text">${icons.gem} TESORI DELLA PAROLA DI DIO</span>
+                        <span class="chevron-icon">${icons.chevronDown}</span>
+                    </h2>
+                     <div class="p-6 space-y-6 ${state.collapsedSections.tesori ? 'hidden' : ''}">
+                        <div class="${state.currentlyHighlighted === 'tesori_discorso' ? 'ring-2 ring-blue-500 ring-offset-2 rounded-lg' : ''} p-2 -m-2">
+                            <div class="flex flex-wrap gap-4 justify-between items-center bg-cyan-50 p-2 rounded-md">
+                                 <h3 class="font-bold text-lg text-cyan-800 flex items-center gap-2">${highlightButton('tesori_discorso')} ${partCounter++}. Discorso dei Tesori</h3>
+                                ${durationControl('programma.tesori.discorso.durata', p.tesori.discorso.durata)}
+                            </div>
+                            <p class="mt-2"><span class="font-semibold">Tema:</span> ${editable('programma.tesori.discorso.tema')}</p>
+                             <p class="mt-2"><span class="font-semibold">Oratore:</span> ${dropdown('programma.tesori.discorso.oratore', state.partecipanti, p.tesori.discorso.oratore)}</p>
+                        </div>
+                        <div class="border-t border-slate-200 pt-6 ${state.currentlyHighlighted === 'tesori_gemme' ? 'ring-2 ring-blue-500 ring-offset-2 rounded-lg' : ''} p-2 -m-2">
+                           <div class="flex flex-wrap gap-4 justify-between items-center bg-cyan-50 p-2 rounded-md">
+                               <h3 class="font-bold text-lg text-cyan-800 flex items-center gap-2">${highlightButton('tesori_gemme')} ${partCounter++}. Gemme spirituali</h3>
+                               ${durationControl('programma.tesori.gemme.durata', p.tesori.gemme.durata)}
+                           </div>
+                           <p class="mt-2"><span class="font-semibold">Conduttore:</span> ${dropdown('programma.tesori.gemme.conduttore', state.partecipanti, p.tesori.gemme.conduttore)}</p>
+                         </div>
+                        <div class="border-t border-slate-200 pt-6 ${state.currentlyHighlighted === 'tesori_lettura' ? 'ring-2 ring-blue-500 ring-offset-2 rounded-lg' : ''} p-2 -m-2">
+                             <div class="flex flex-wrap gap-4 justify-between items-center bg-cyan-50 p-2 rounded-md">
+                                <h3 class="font-bold text-lg text-cyan-800 flex items-center gap-2">${highlightButton('tesori_lettura')} ${partCounter++}. Lettura biblica</h3>
+                                ${durationControl('programma.tesori.lettura.durata', p.tesori.lettura.durata)}
+                            </div>
+                            <div class="flex flex-wrap gap-4 justify-between items-center mt-2">
+                                <div>
+                                    <p><span class="font-semibold">Lettore:</span> ${dropdown('programma.tesori.lettura.lettore', state.partecipanti, p.tesori.lettura.lettore)}</p>
+                                    <p class="mt-1"><span class="font-semibold">Brano:</span> ${editable('programma.tesori.lettura.brano')}</p>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                     ${timerControl('tesori_lettura', p.tesori.lettura.durata)}
+                                </div>
+                            </div>
+                            <div class="mt-4"><span class="font-semibold">Punto da osservare:</span> ${puntiDropdown('programma.tesori.lettura.punto', state.puntiLettura, p.tesori.lettura.punto)}</div>
+                            <div class="mt-4"><p class="font-semibold mb-1">Osservazioni:</p>${simpleEditable('programma.tesori.lettura.commento')}</div>
+                         </div>
+                    </div>
+                </div>
+
+                <div class="jw-card">
+                    <h2 class="jw-section-title bg-amber-600 ${state.collapsedSections.ministero ? 'collapsed' : ''}" data-op="toggle-collapse" data-section-id="ministero">
+                        <span class="title-text">${icons.wheat} EFFICACI NEL MINISTERO</span>
+                        <span class="chevron-icon">${icons.chevronDown}</span>
+                    </h2>
+                    <div id="ministero-parts" class="p-6 space-y-6 ${state.collapsedSections.ministero ? 'hidden' : ''}">
+                        ${p.ministero.map((part, index) => ministeroPartTemplate(part, index, partCounter)).join('')}
+                    </div>
+                    ${!state.liveMode && !state.collapsedSections.ministero ? `<div class="p-6 border-t border-slate-200"><button id="add-ministero-part" class="flex items-center gap-2 bg-amber-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-amber-800">${icons.plus} Aggiungi parte</button></div>` : ''}
+                </div>
+                
+                <div class="jw-card p-6 text-center">
+                     <h3 class="font-bold text-lg text-black mb-2">CANTICO INTERMEDIO</h3>
+                    ${canticoDropdown('programma.canticoIntermedio', p.canticoIntermedio.numero)}
+                </div>
+
+                <div class="jw-card">
+                     <h2 class="jw-section-title bg-red-800 ${state.collapsedSections.vitaCristiana ? 'collapsed' : ''}" data-op="toggle-collapse" data-section-id="vitaCristiana">
+                        <span class="title-text">${icons.sheep} VITA CRISTIANA</span>
+                        <span class="chevron-icon">${icons.chevronDown}</span>
+                    </h2>
+                     <div id="vita-cristiana-parts" class="p-6 space-y-6 ${state.collapsedSections.vitaCristiana ? 'hidden' : ''}">
+                        ${p.vitaCristiana.map((part, index) => vitaCristianaPartTemplate(part, index, partCounter + p.ministero.length)).join('')}
+                    </div>
+                     ${!state.liveMode && !state.collapsedSections.vitaCristiana ? `<div class="p-6 border-t border-slate-200"><button id="add-vita-cristiana-part" class="flex items-center gap-2 bg-red-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-900">${icons.plus} Aggiungi parte</button></div>` : ''}
+                </div>
+
+                <div class="jw-card">
+                    <h2 class="jw-section-title bg-violet-800 ${state.collapsedSections.riepilogo ? 'collapsed' : ''}" data-op="toggle-collapse" data-section-id="riepilogo">
+                        <span class="title-text">RIEPILOGO E ANNUNCI</span>
+                        <span class="chevron-icon">${icons.chevronDown}</span>
+                    </h2>
+                    <div class="p-6 space-y-6 ${state.collapsedSections.riepilogo ? 'hidden' : ''}">
+                        <div>
+                            <h3 class="text-lg font-bold text-violet-800 uppercase mb-2">RIEPILOGO</h3>
+                             <div class="mt-2 ${state.liveMode ? 'live-mode-quill' : ''}">${richEditable('programma.riepilogo')}</div>
+                        </div>
+                        <div class="border-t border-slate-200 pt-6">
+                           <h3 class="flex items-center gap-2 text-lg font-bold text-violet-800 uppercase mb-2"><span class="text-violet-600">${icons.calendar}</span> In programma la settimana prossima</h3>
+                           <div class="${state.liveMode ? 'live-mode-quill' : ''}">${richEditable('programma.anticipazioni')}</div>
+                        </div>
+                         <div class="border-t border-slate-200 pt-6">
+                            <h3 class="flex items-center gap-2 text-lg font-bold text-violet-800 uppercase mb-2"><span class="text-violet-600">${icons.info}</span> Annunci</h3>
+                           <div class="mt-2 ${state.liveMode ? 'live-mode-quill' : ''}">${richEditable('programma.annunci.testo')}</div>
+                           <div id="allegati-list" class="mt-4 space-y-2">
+                                ${(p.annunci.allegati || []).map(a => `
+                                    <div class="flex items-center justify-between bg-slate-100 p-2 rounded-md">
+                                        <a href="#" data-op="open-allegato" data-uri="${a.dataURI}" class="text-blue-600 hover:underline flex items-center gap-2 cursor-pointer">
+                                            ${icons.paperclip}
+                                            <span class="truncate">${a.nomeFile}</span>
+                                        </a>
+                                        ${!state.liveMode ? `<button data-op="remove-allegato" data-id="${a.id}" class="text-red-500 hover:text-red-700 p-1">${icons.trash}</button>` : ''}
+                                    </div>
+                                `).join('')}
+                           </div>
+                           ${!state.liveMode ? `
+                                <div class="mt-4">
+                                    <label for="annunci-file-input" class="inline-flex items-center gap-2 bg-slate-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-700 cursor-pointer">
+                                        ${icons.paperclip} Allega File
+                                    </label>
+                                    <input type="file" id="annunci-file-input" class="hidden">
+                                </div>
+                           ` : ''}
+                        </div>
+                    </div>
+                 </div>
+
+                <div class="jw-card grid md:grid-cols-2 gap-6 p-6">
+                    <div>
+                        <h3 class="font-bold text-lg text-black mb-2">CANTICO FINALE</h3>
+                         ${canticoDropdown('programma.canticoFinale', p.canticoFinale.numero)}
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg text-black mb-2">PREGHIERA FINALE</h3>
+                         ${dropdown('programma.preghieraFinale', state.partecipanti, p.preghieraFinale)}
+                    </div>
+                </div>
+            </main>
+            ${!state.liveMode ? managementSectionTemplate() : ''}
+        `;
+        
+        appContainer.innerHTML = template;
+        
+        initializeQuillEditors();
+    }
+    
+    function ministeroPartTemplate(part, index, baseCounter) {
+        const path = `programma.ministero.${index}`;
+        const isFirst = index === 0;
+        const partId = `ministero_${part.id}`;
+        const isHighlighted = state.currentlyHighlighted === partId;
+        return `
+        <div class="ministero-part draggable-part ${!isFirst ? 'border-t border-slate-200 pt-6' : ''} ${isHighlighted ? 'ring-2 ring-blue-500 ring-offset-2 rounded-lg' : ''} p-2 -m-2" data-index="${index}" draggable="${!state.liveMode}">
+             ${!state.liveMode ? `<span class="drag-handle">${icons.grip}</span>` : ''}
+            <div class="flex flex-wrap justify-between items-center bg-amber-50 p-2 rounded-md gap-4">
+                 <h3 class="font-bold text-lg text-amber-800 flex items-center gap-2">${highlightButton(partId)} ${baseCounter + index}. ${editable(`${path}.tipo`, 'Tipo parte')}</h3>
+                 <div class="flex items-center gap-2">
+                    ${durationControl(`${path}.durata`, part.durata)}
+                    ${!state.liveMode ? `<button data-op="remove-ministero" data-index="${index}" class="text-red-500 hover:text-red-700">${icons.trash}</button>` : ''}
+                 </div>
+            </div>
+           
+            <div class="flex flex-wrap gap-4 justify-between items-center mb-2 mt-2">
+                 <div class="flex-grow">
+                    <div class="text-slate-600">${editable(`${path}.contesto`, 'Contesto...')}</div>
+                    <div class="space-y-2 mt-2">
+                        <p><span class="font-semibold">Studente:</span> ${dropdown(`${path}.studente`, state.partecipanti, part.studente)}</p>
+                        <p><span class="font-semibold">Assistente:</span> ${dropdown(`${path}.assistente`, state.partecipanti, part.assistente)}</p>
+                    </div>
+                 </div>
+                 <div class="flex items-center gap-4">
+                    ${timerControl(`ministero_${part.id}`, part.durata)}
+                </div>
+            </div>
+            <div class="mt-4"><span class="font-semibold">Punto da osservare:</span> ${puntiDropdown(`${path}.punto`, state.puntiMinistero, part.punto)}</div>
+            <div class="mt-4"><p class="font-semibold mb-1">Osservazioni:</p>${simpleEditable('programma.ministero.' + index + '.commento')}</div>
+        </div>
+        `;
+    }
+
+    function vitaCristianaPartTemplate(part, index, baseCounter) {
+        const path = `programma.vitaCristiana.${index}`;
+        const isFirst = index === 0;
+        const partId = `vita_${part.id}`;
+        const isHighlighted = state.currentlyHighlighted === partId;
+        let titleContent;
+        let detailsContent;
+        
+        const partNumber = `${baseCounter + index}. `;
+
+        if (state.supervisorVisit && part.tipo === 'Studio Biblico') {
+            titleContent = `<h3 class="font-bold text-lg text-red-900 flex items-center gap-2">${highlightButton(partId)} ${partNumber}1° discorso di servizio</h3>`;
+            detailsContent = `
+                <p><span class="font-semibold">Tema:</span> ${editable(`${path}.conduttore`, 'Tema del discorso')}</p>
+                <p class="mt-2"><span class="font-semibold">Oratore:</span> ${editable(`${path}.tema`, 'Nome Sorvegliante')}</p>
+            `;
+        } else if (part.tipo === 'Studio Biblico') {
+            titleContent = `<h3 class="font-bold text-lg text-red-900 flex items-center gap-2">${highlightButton(partId)} ${partNumber}Studio biblico di congregazione</h3>`;
+            detailsContent = `<p><span class="font-semibold">Conduttore:</span> ${dropdown(`${path}.conduttore`, state.partecipanti, part.conduttore)}</p>`;
+        } else {
+            titleContent = `<h3 class="font-bold text-lg text-red-900 flex items-center gap-2">${highlightButton(partId)} ${partNumber}${editable(`${path}.tema`, 'Tema della parte')}</h3>`;
+            detailsContent = `<p><span class="font-semibold">Conduttore:</span> ${dropdown(`${path}.conduttore`, state.partecipanti, part.conduttore)}</p>`;
+        }
+
+        return `
+        <div class="vita-cristiana-part draggable-part ${!isFirst ? 'border-t border-slate-200 pt-6' : ''} ${isHighlighted ? 'ring-2 ring-blue-500 ring-offset-2 rounded-lg' : ''} p-2 -m-2" data-index="${index}" draggable="${!state.liveMode}">
+            ${!state.liveMode ? `<span class="drag-handle">${icons.grip}</span>` : ''}
+            
+            <div class="flex flex-wrap justify-between items-center bg-red-50 p-2 rounded-md">
+                ${titleContent}
+                <div class="flex items-center gap-2">
+                    ${durationControl(`${path}.durata`, part.durata)}
+                    ${!state.liveMode ? `<button data-op="remove-vita-cristiana" data-index="${index}" class="text-red-500 hover:text-red-700">${icons.trash}</button>` : ''}
+                </div>
+            </div>
+
+            <div class="pt-4 pb-2">
+                ${detailsContent}
+            </div>
+        </div>
+        `;
+    }
+
+    function managementSectionTemplate() {
+        return `
+        <footer class="mt-12 pt-8 border-t border-slate-300">
+            <h2 class="text-2xl font-bold mb-6 text-slate-700">Gestione Dati</h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Sezione Partecipanti -->
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="font-semibold mb-3 text-slate-800">Partecipanti</h3>
+                    <div class="space-y-2 max-h-60 overflow-y-auto pr-2 mb-3">
+                        ${state.partecipanti.map((p, i) => `
+                             <div class="flex justify-between items-center bg-slate-50 p-2 rounded-md group">
+                                <span class="flex-grow text-sm text-slate-700">${p}</span>
+                                <div class="flex items-center">
+                                    <button data-op="edit-person" data-index="${i}" class="text-slate-400 hover:text-blue-600 p-1">${icons.edit}</button>
+                                    <button data-op="remove-person" data-index="${i}" class="text-slate-400 hover:text-red-600 p-1">${icons.minus}</button>
+                                </div>
+                             </div>
+                        `).join('')}
+                    </div>
+                    <div class="mt-3 flex gap-2">
+                         <input type="text" id="new-person-input" placeholder="Nuovo partecipante" class="flex-grow border border-slate-300 rounded-md p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <button id="add-person-btn" class="bg-indigo-600 text-white p-2 rounded-md hover:bg-indigo-700 shadow">${icons.plus}</button>
+                    </div>
+                </div>
+
+                <!-- Sezione Cantici -->
+                <div class="bg-white p-4 rounded-lg shadow">
+                     <h3 class="font-semibold mb-3 text-slate-800">Cantici</h3>
+                    <div class="space-y-2 max-h-60 overflow-y-auto pr-2 mb-3">
+                        ${[...state.cantici].sort((a,b) => a.numero - b.numero).map(c => `
+                             <div class="flex justify-between items-center bg-slate-50 p-2 rounded-md">
+                                <span class="text-sm text-slate-700 flex-grow">${c.numero} - ${c.titolo}</span>
+                                 <div class="flex items-center">
+                                    <button data-op="edit-cantico" data-numero="${c.numero}" class="text-slate-400 hover:text-blue-600 p-1">${icons.edit}</button>
+                                    <button data-op="remove-cantico" data-numero="${c.numero}" class="text-slate-400 hover:text-red-600 p-1">${icons.minus}</button>
+                                 </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                     <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <input type="number" id="new-cantico-numero" placeholder="Nr." class="border border-slate-300 rounded-md p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <input type="text" id="new-cantico-titolo" placeholder="Titolo cantico" class="sm:col-span-2 border border-slate-300 rounded-md p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                     <button id="add-cantico-btn" class="mt-2 w-full bg-indigo-600 text-white p-2 rounded-md hover:bg-indigo-700 flex items-center justify-center gap-1 shadow">${icons.plus} Aggiungi Cantico</button>
+                </div>
+                
+                <!-- Sezione Punti -->
+                <div class="bg-white p-4 rounded-lg shadow">
+                     <h3 class="font-semibold mb-3 text-slate-800">Punti Studio e Ministero</h3>
+                      <div class="space-y-2 max-h-60 overflow-y-auto pr-2 mb-3">
+                        <h4 class="font-medium text-sm text-slate-500 mt-2">Punti Lettura</h4>
+                        ${state.puntiLettura.map(p => `<div class="bg-slate-50 p-2 rounded-md text-sm text-slate-700 flex justify-between items-center">${p.nome} <div class="flex items-center"><button data-op="edit-punto" data-type="lettura" data-id="${p.id}" class="text-slate-400 hover:text-blue-600 p-1">${icons.edit}</button><button data-op="remove-punto" data-type="lettura" data-id="${p.id}" class="text-slate-400 hover:text-red-600 p-1">${icons.minus}</button></div></div>`).join('')}
+                         <h4 class="font-medium text-sm text-slate-500 mt-4">Punti Ministero</h4>
+                        ${state.puntiMinistero.map(p => `<div class="bg-slate-50 p-2 rounded-md text-sm text-slate-700 flex justify-between items-center">${p.nome} <div class="flex items-center"><button data-op="edit-punto" data-type="ministero" data-id="${p.id}" class="text-slate-400 hover:text-blue-600 p-1">${icons.edit}</button><button data-op="remove-punto" data-type="ministero" data-id="${p.id}" class="text-slate-400 hover:text-red-600 p-1">${icons.minus}</button></div></div>`).join('')}
+                     </div>
+                      <div class="mt-3 space-y-2">
+                        <select id="new-punto-type" class="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="lettura">Punto Lettura</option>
+                            <option value="ministero">Punto Ministero</option>
+                        </select>
+                        <input type="text" id="new-punto-nome" placeholder="Nome breve punto (es. Lez 1)" class="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <textarea id="new-punto-desc" placeholder="Descrizione completa del punto" class="w-full border border-slate-300 rounded-md p-2 text-sm h-20 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                        <button id="add-punto-btn" class="w-full bg-indigo-600 text-white p-2 rounded-md hover:bg-indigo-700 flex items-center justify-center gap-1 shadow">${icons.plus} Aggiungi Punto</button>
+                      </div>
+                </div>
+            </div>
+        </footer>
+        `;
+    }
+
+    // --- LOGICA DI GESTIONE EVENTI ---
+    function attachEventListeners() {
+        // Listener per i bottoni della modale
+        document.getElementById('modal-close-btn').addEventListener('click', hideEditModal);
+        document.getElementById('modal-save-btn').addEventListener('click', () => {
+            if (onSaveCallback) {
+                onSaveCallback();
+            }
+        });
+
+        const appElement = document.getElementById('app');
+        if (!appElement) return;
+
+        appElement.addEventListener('click', (e) => {
+            const target = e.target;
+            const button = target.closest('button');
+            const link = target.closest('a');
+            const sectionTitle = target.closest('[data-op="toggle-collapse"]');
+
+            if (link) {
+                const op = link.dataset.op;
+                if (op === 'open-allegato') {
+                    e.preventDefault();
+                    const dataURI = link.dataset.uri;
+                    if (dataURI) {
+                        openDataUriInNewTab(dataURI);
+                    }
+                    return;
+                }
+            }
+            
+            if (button) {
+                const op = button.dataset.op;
+                
+                // --- GESTIONE MODIFICA ---
+                if (op === 'edit-person') {
+                    const index = parseInt(button.dataset.index, 10);
+                    const currentValue = state.partecipanti[index];
+                    const content = `<div><label for="edit-person-input" class="block text-sm font-medium text-slate-700">Nome Partecipante</label><input type="text" id="edit-person-input" value="${currentValue}" class="mt-1 w-full border border-slate-300 rounded-md p-2"></div>`;
+                    
+                    showEditModal('Modifica Partecipante', content, () => {
+                        const newValue = document.getElementById('edit-person-input').value.trim().toUpperCase();
+                        if (newValue) {
+                            let newPartecipanti = [...state.partecipanti];
+                            newPartecipanti[index] = newValue;
+                            updateState('partecipanti', newPartecipanti.sort());
+                            hideEditModal();
+                        }
+                    });
+                    return;
+                }
+
+                if (op === 'edit-cantico') {
+                    const numero = parseInt(button.dataset.numero, 10);
+                    const cantico = state.cantici.find(c => c.numero === numero);
+                    const content = `
+                        <div><label class="block text-sm font-medium text-slate-700">Numero (non modificabile)</label><input type="text" value="${cantico.numero}" class="mt-1 w-full border border-slate-300 rounded-md p-2 bg-slate-100" readonly></div>
+                        <div><label for="edit-cantico-titolo" class="block text-sm font-medium text-slate-700">Titolo</label><input type="text" id="edit-cantico-titolo" value="${cantico.titolo}" class="mt-1 w-full border border-slate-300 rounded-md p-2"></div>`;
+                    
+                    showEditModal('Modifica Cantico', content, () => {
+                        const newTitolo = document.getElementById('edit-cantico-titolo').value.trim();
+                        if (newTitolo) {
+                            const newCantici = state.cantici.map(c => c.numero === numero ? { ...c, titolo: newTitolo } : c);
+                            updateState('cantici', newCantici);
+                            hideEditModal();
+                        }
+                    });
+                    return;
+                }
+
+                if (op === 'edit-punto') {
+                    const type = button.dataset.type;
+                    const id = parseInt(button.dataset.id, 10);
+                    const list = (type === 'lettura') ? state.puntiLettura : state.puntiMinistero;
+                    const punto = list.find(p => p.id === id);
+
+                    const content = `
+                        <div>
+                            <label for="edit-punto-type" class="block text-sm font-medium text-slate-700">Sezione</label>
+                            <select id="edit-punto-type" class="mt-1 w-full border border-slate-300 rounded-md p-2">
+                                <option value="lettura" ${type === 'lettura' ? 'selected' : ''}>Punto Lettura</option>
+                                <option value="ministero" ${type === 'ministero' ? 'selected' : ''}>Punto Ministero</option>
+                            </select>
+                        </div>
+                        <div><label for="edit-punto-nome" class="block text-sm font-medium text-slate-700">Nome Punto</label><input type="text" id="edit-punto-nome" value="${punto.nome}" class="mt-1 w-full border border-slate-300 rounded-md p-2"></div>
+                        <div><label for="edit-punto-desc" class="block text-sm font-medium text-slate-700">Descrizione</label><textarea id="edit-punto-desc" class="mt-1 w-full border border-slate-300 rounded-md p-2 h-28">${punto.descrizione}</textarea></div>`;
+
+                    showEditModal('Modifica Punto', content, () => {
+                        const newNome = document.getElementById('edit-punto-nome').value.trim();
+                        const newDesc = document.getElementById('edit-punto-desc').value.trim();
+                        const newType = document.getElementById('edit-punto-type').value;
+                        
+                        if (!newNome || !newDesc) {
+                            showToast("Nome e descrizione non possono essere vuoti.", "error");
+                            return;
+                        }
+
+                        if (type === newType) {
+                            // La sezione non è cambiata, basta aggiornare i dati
+                            const listPath = type === 'lettura' ? 'puntiLettura' : 'puntiMinistero';
+                            const updatedList = state[listPath].map(p => p.id === id ? { ...p, nome: newNome, descrizione: newDesc } : p);
+                            updateState(listPath, updatedList);
+                        } else {
+                            // La sezione è cambiata, bisogna spostare il punto
+                            const oldListPath = type === 'lettura' ? 'puntiLettura' : 'puntiMinistero';
+                            const newListPath = newType === 'lettura' ? 'puntiLettura' : 'puntiMinistero';
+                            
+                            const puntoToMove = { ...state[oldListPath].find(p => p.id === id), nome: newNome, descrizione: newDesc };
+                            
+                            const updatedOldList = state[oldListPath].filter(p => p.id !== id);
+                            const updatedNewList = [...state[newListPath], puntoToMove];
+                            
+                            // Aggiorna entrambi gli stati
+                            let newState = JSON.parse(JSON.stringify(state));
+                            newState[oldListPath] = updatedOldList;
+                            newState[newListPath] = updatedNewList;
+                            state = newState; // Sovrascrivi lo stato locale
+                            saveState(); // Salva lo stato completo aggiornato
+                            render(); // Esegui il rendering
+                        }
+                        
+                        hideEditModal();
+                    });
+                    return;
+                }
+
+
+                if (op === 'main-timer-toggle' || op === 'main-timer-reset') {
+                    handleMainTimerOp(op.replace('main-timer-', ''));
+                    return;
+                }
+                if (op === 'remove-allegato') {
+                    const allegatoId = parseInt(button.dataset.id, 10);
+                    const allegatiAggiornati = state.programma.annunci.allegati.filter(a => a.id !== allegatoId);
+                    updateState('programma.annunci.allegati', allegatiAggiornati);
+                    return;
+                }
+                
+                // --- GESTIONE PULSANTI GLOBALI ---
+                if (button.id === 'new-week-btn') { prepareNewWeek(); return; }
+                if (button.id === 'save-btn') { saveState(); showToast("Modifiche salvate con successo!", "success"); return; }
+                if (button.id === 'backup-btn') {
+                    const dataStr = JSON.stringify(state, null, 2);
+                    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                    const linkElement = document.createElement('a');
+                    linkElement.setAttribute('href', dataUri);
+                    linkElement.setAttribute('download', `presidente_vcm_backup_${new Date().toISOString().slice(0,10)}.json`);
+                    linkElement.click();
+                    return;
+                }
+                if (button.id === 'export-pdf-btn') {
+                    document.getElementById('print-area').innerHTML = generatePrintableHTML();
+                    window.print();
+                    return;
+                }
+
+                const timerOp = button.dataset.timerOp;
+                if (timerOp) { handleTimerOp(button.dataset.timerId, timerOp); return; }
+
+                if(op === 'highlight') { updateState('currentlyHighlighted', button.dataset.partId); return; }
+                
+                if (state.liveMode) return;
+                
+                const path = button.dataset.path;
+                
+                if (op === 'plus' || op === 'minus') {
+                    const pathParts = path.split('.');
+                    const value = pathParts.reduce((obj, key) => obj[key], state);
+                    let numericValue = parseInt(value, 10) || 0;
+                    if (op === 'plus') numericValue++;
+                    if (op === 'minus' && numericValue > 0) numericValue--;
+                    updateState(path, numericValue, true);
+                    return;
+                }
+                
+                if (button.id === 'add-person-btn') {
+                    const input = document.getElementById('new-person-input');
+                    const newName = input.value.trim().toUpperCase();
+                    if (newName) {
+                        updateState('partecipanti', [...state.partecipanti, newName].sort());
+                        input.value = '';
+                    }
+                    return;
+                }
+                if (op === 'remove-person') {
+                    updateState('partecipanti', state.partecipanti.filter((_, i) => i !== parseInt(button.dataset.index, 10)));
+                    return;
+                }
+                if (button.id === 'add-cantico-btn') {
+                    const numInput = document.getElementById('new-cantico-numero');
+                    const titoloInput = document.getElementById('new-cantico-titolo');
+                    const numero = parseInt(numInput.value, 10);
+                    const titolo = titoloInput.value.trim();
+                    if (numero && titolo && !state.cantici.some(c => c.numero === numero)) {
+                        updateState('cantici', [...state.cantici, { numero, titolo }]);
+                        numInput.value = '';
+                        titoloInput.value = '';
+                    } else {
+                        showToast("Numero di cantico non valido o già esistente.", "error");
+                    }
+                    return;
+                }
+                if (op === 'remove-cantico') {
+                    updateState('cantici', state.cantici.filter(c => c.numero !== parseInt(button.dataset.numero, 10)));
+                    return;
+                }
+                
+                if (button.id === 'add-ministero-part') {
+                    const newId = state.programma.ministero.length ? Math.max(0, ...state.programma.ministero.map(p => p.id)) + 1 : 1;
+                    const newPart = { id: newId, tipo: "Nuova Parte", studente: "", assistente: "", durata: 3, contesto: "", punto: null, commento: "" };
+                    updateState('programma.ministero', [...state.programma.ministero, newPart]);
+                    return;
+                }
+                if (op === 'remove-ministero') {
+                    updateState('programma.ministero', state.programma.ministero.filter((_, i) => i !== parseInt(button.dataset.index, 10)));
+                    return;
+                }
+                 if (button.id === 'add-vita-cristiana-part') {
+                    const newId = state.programma.vitaCristiana.length ? Math.max(0, ...state.programma.vitaCristiana.map(p => p.id)) + 1 : 1;
+                    const newPart = { id: newId, tipo: "Parte", tema: "Nuova Parte", conduttore: "", durata: 15 };
+                    updateState('programma.vitaCristiana', [...state.programma.vitaCristiana, newPart]);
+                    return;
+                }
+                if (op === 'remove-vita-cristiana') {
+                    updateState('programma.vitaCristiana', state.programma.vitaCristiana.filter((_, i) => i !== parseInt(button.dataset.index, 10)));
+                    return;
+                }
+                 if (button.id === 'add-punto-btn') {
+                    const type = document.getElementById('new-punto-type').value;
+                    const nome = document.getElementById('new-punto-nome').value.trim();
+                    const desc = document.getElementById('new-punto-desc').value.trim();
+                    if (nome && desc) {
+                        const listPath = type === 'lettura' ? 'puntiLettura' : 'puntiMinistero';
+                        const list = state[listPath];
+                        const newId = list.length > 0 ? Math.max(...list.map(p => p.id)) + 1 : 1;
+                        updateState(listPath, [...list, { id: newId, nome, descrizione: desc }]);
+                        document.getElementById('new-punto-nome').value = '';
+                        document.getElementById('new-punto-desc').value = '';
+                    } else {
+                        showToast("Compila sia il nome che la descrizione del punto.", "error");
+                    }
+                    return;
+                }
+                if (op === 'remove-punto') {
+                    const type = button.dataset.type;
+                    const id = parseInt(button.dataset.id, 10);
+                    const listPath = type === 'lettura' ? 'puntiLettura' : 'puntiMinistero';
+                    updateState(listPath, state[listPath].filter(p => p.id !== id));
+                    return;
+                }
+            } else if (sectionTitle) {
+                 const sectionId = sectionTitle.dataset.sectionId;
+                 if(sectionId) {
+                    const path = 'collapsedSections.' + sectionId;
+                    updateState(path, !state.collapsedSections[sectionId]);
+                 }
+            }
+        });
+
+        // Listener per i Cambiamenti (es. select, checkbox, input)
+        appElement.addEventListener('change', (e) => {
+            const target = e.target;
+            
+            if (target.id === 'live-mode-toggle') { updateState('liveMode', target.checked); return; }
+            
+            if(target.id === 'annunci-file-input') {
+                const file = target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const nuovoAllegato = {
+                        id: Date.now(),
+                        nomeFile: file.name,
+                        dataURI: e.target.result
+                    };
+                    const allegatiAttuali = state.programma.annunci.allegati || [];
+                    updateState('programma.annunci.allegati', [...allegatiAttuali, nuovoAllegato]);
+                };
+                reader.readAsDataURL(file);
+                target.value = ''; // Resetta l'input per permettere di caricare lo stesso file di nuovo
+                return;
+            }
+            
+            if (state.liveMode) return;
+
+            if (target.id === 'main-timer-duration-input') {
+                const newDuration = parseInt(target.value, 10) || 105;
+                let newState = JSON.parse(JSON.stringify(state));
+                newState.mainTimer.totalMinutes = newDuration;
+                if (!newState.mainTimer.running) {
+                    newState.mainTimer.remainingSeconds = newDuration * 60;
+                }
+                state = newState;
+                saveState();
+                render();
+                return;
+            }
+
+            if (target.matches('select[data-path*=".punto"]')) {
+                const path = target.dataset.path;
+                const puntoId = target.value;
+                const commentoPath = path.replace('.punto', '.commento');
+                const isMinistero = path.startsWith('programma.ministero');
+                const sourceList = isMinistero ? state.puntiMinistero : state.puntiLettura;
+                const punto = sourceList.find(p => p.id == puntoId);
+                let newState = JSON.parse(JSON.stringify(state));
+                const updateNestedValue = (obj, p, v) => {
+                    let parts = p.split('.'); let c = obj;
+                    for (let i = 0; i < parts.length - 1; i++) { c = c[parts[i]]; }
+                    c[parts[parts.length - 1]] = v;
+                };
+                updateNestedValue(newState, path, puntoId);
+                updateNestedValue(newState, commentoPath, punto ? punto.descrizione : "");
+                state = newState;
+                saveState();
+                render();
+                return;
+            }
+
+            if (target.matches('select[data-path]')) { updateState(target.dataset.path, target.value, true); return; }
+
+            if (target.matches('select.cantico-select')) {
+                const numero = target.value;
+                const cantico = state.cantici.find(c => c.numero == numero);
+                const pathPrefix = target.dataset.pathNumero.substring(0, target.dataset.pathNumero.lastIndexOf('.'));
+                const parentObject = pathPrefix.split('.').reduce((obj, key) => obj[key], state);
+                updateState(pathPrefix, { ...parentObject, numero: numero, titolo: cantico ? cantico.titolo : "" }, true);
+                return;
+            }
+
+            if (target.id === 'supervisor-toggle') { updateState('supervisorVisit', target.checked); return; }
+            
+            // Listener per ripristinare i dati da un backup NUOVO
+            if (target.id === 'restore-input') {
+                const file = target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const restoredState = JSON.parse(event.target.result);
+                        if (restoredState.programma) {
+                            state = deepMerge(getInitialState(), restoredState);
+                            saveState();
+                            render();
+                            showToast("Dati ripristinati con successo!", "success");
+                        } else { throw new Error("File di backup non valido."); }
+                    } catch (err) {
+                        showToast("Errore durante il ripristino: file non valido.", "error"); console.error(err);
+                    }
+                };
+                reader.readAsText(file);
+                target.value = '';
+                return;
+            }
+
+            // Listener per importare i dati da un backup VECCHIO
+            if (target.id === 'restore-old-input') {
+                const file = target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const oldData = JSON.parse(event.target.result);
+                        if (!oldData.programma) {
+                            throw new Error("File di backup non valido o non riconosciuto come versione precedente.");
+                        }
+
+                        // Trasforma i vecchi dati nel nuovo formato
+                        const transformedData = transformOldBackup(oldData);
+
+                        // Carica i dati trasformati
+                        state = deepMerge(getInitialState(), transformedData);
+                        saveState();
+                        render();
+                        showToast("Dati da backup precedente importati con successo!", "success");
+
+                    } catch (err) {
+                        showToast("Errore durante l'importazione del vecchio backup.", "error");
+                        console.error(err);
+                    }
+                };
+                reader.readAsText(file);
+                target.value = ''; // Resetta l'input
+                return;
+            }
+        });
+
+        // Listener per la perdita di focus (es. contenteditable)
+        appElement.addEventListener('blur', (e) => {
+            const target = e.target;
+             if (state.liveMode || !target.matches('[contenteditable][data-path]')) return;
+             if(target.closest('.ql-editor')) return; // Ignora gli eventi blur di Quill
+            updateState(target.dataset.path, target.innerHTML, false);
+        }, true);
+
+        // --- LOGICA DRAG-AND-DROP ---
+        let draggedItem = null;
+        appElement.addEventListener('dragstart', (e) => {
+            if (state.liveMode) { e.preventDefault(); return; }
+            draggedItem = e.target.closest('.draggable-part');
+            if (draggedItem) { setTimeout(() => { draggedItem.classList.add('dragging'); }, 0); }
+        });
+        appElement.addEventListener('dragend', () => { if (draggedItem) { draggedItem.classList.remove('dragging'); draggedItem = null; } });
+        appElement.addEventListener('dragover', (e) => {
+             e.preventDefault();
+             const container = e.target.closest('#ministero-parts, #vita-cristiana-parts');
+             if (!container || !draggedItem) return;
+             const afterElement = getDragAfterElement(container, e.clientY);
+             if (afterElement == null) { container.appendChild(draggedItem); } else { container.insertBefore(draggedItem, afterElement); }
+        });
+        appElement.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const container = e.target.closest('#ministero-parts, #vita-cristiana-parts');
+            if(!container || !draggedItem) return;
+            const isMinistero = container.id === 'ministero-parts';
+            const listPath = isMinistero ? 'programma.ministero' : 'programma.vitaCristiana';
+            const originalList = isMinistero ? state.programma.ministero : state.programma.vitaCristiana;
+            const newOrderIndices = [...container.querySelectorAll('.draggable-part')].map(el => parseInt(el.dataset.index, 10));
+            const newList = newOrderIndices.map(originalIndex => originalList.find((item, index) => index === originalIndex));
+            let newState = JSON.parse(JSON.stringify(state));
+            if (isMinistero) { newState.programma.ministero = newList; } else { newState.programma.vitaCristiana = newList; }
+            state = newState;
+            saveState();
+            render();
+        });
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.draggable-part:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) { return { offset: offset, element: child }; } else { return closest; }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+    }
+    
+    // ===== FUNZIONE PER QUILL EDITOR =====
+     function initializeQuillEditors() {
+        const quillOptions = {
+            modules: { toolbar: state.liveMode ? false : [['bold', 'italic', 'underline']] },
+            theme: 'snow',
+            readOnly: state.liveMode
+        };
+        document.querySelectorAll('.quill-editor-container').forEach(container => {
+            const path = container.dataset.path;
+            if (!path || container.querySelector('.ql-container')) return;
+            
+            let value = '';
+            try {
+                value = path.split('.').reduce((obj, key) => (obj && obj[key] !== undefined ? obj[key] : ''), state);
+            } catch (e) {
+                // Gestisce il caso in cui il percorso non sia ancora un oggetto, come per 'programma.annunci.testo'
+            }
+
+            // Se il valore trovato non è una stringa (potrebbe essere l'intero oggetto annunci), usa la proprietà testo o una stringa vuota
+            if (typeof value !== 'string') {
+                 value = value?.testo || '';
+            }
+
+            container.innerHTML = ''; 
+            const editorDiv = document.createElement('div');
+            container.appendChild(editorDiv);
+            const quill = new Quill(editorDiv, quillOptions);
+            quill.root.innerHTML = value;
+            if (state.liveMode) { container.querySelector('.ql-container').classList.add('live-mode'); }
+            quillInstances[path] = quill;
+            if (!state.liveMode) {
+                quill.on('text-change', () => { updateState(path, quill.root.innerHTML, false); });
+            }
+        });
+     }
+
+    function handleMainTimerOp(op) {
+        if (op === 'toggle') {
+            state.mainTimer.running = !state.mainTimer.running;
+            if (state.mainTimer.running) {
+                if(mainTimerInterval) clearInterval(mainTimerInterval);
+                mainTimerInterval = setInterval(() => {
+                    state.mainTimer.remainingSeconds--;
+                    const display = document.getElementById('main-timer-display');
+                    const progressBar = document.getElementById('main-progress-bar');
+                    if (display) display.textContent = formatTime(state.mainTimer.remainingSeconds);
+                    
+                    if (progressBar) {
+                        const totalSeconds = state.mainTimer.totalMinutes * 60;
+                        const elapsedSeconds = totalSeconds - state.mainTimer.remainingSeconds;
+                        const progressPercentage = Math.min(100, (elapsedSeconds / totalSeconds) * 100);
+                        progressBar.style.width = `${progressPercentage}%`;
+                    }
+                    
+                    if(state.mainTimer.remainingSeconds <= 0) {
+                        clearInterval(mainTimerInterval);
+                        state.mainTimer.running = false;
+                        updateState('mainTimer', { ...state.mainTimer });
+                    }
+                }, 1000);
+            } else {
+                if(mainTimerInterval) clearInterval(mainTimerInterval);
+            }
+        } else if (op === 'reset') {
+            if(mainTimerInterval) clearInterval(mainTimerInterval);
+            state.mainTimer.running = false;
+            state.mainTimer.remainingSeconds = state.mainTimer.totalMinutes * 60;
+        }
+        updateState('mainTimer', { ...state.mainTimer });
+    }
+
+    function handleTimerOp(id, op) {
+        if (!state.timers[id]) {
+            state.timers[id] = { time: 0, running: false, maxTime: 0 };
+        }
+        let partDuration = 0;
+        const idParts = id.split('_');
+        if (idParts[0] === 'tesori' && idParts[1] === 'lettura') {
+            partDuration = state.programma.tesori.lettura.durata;
+        } else if (idParts[0] === 'ministero') {
+            const part = state.programma.ministero.find(p => p.id == idParts[1]);
+            if (part) partDuration = part.durata;
+        }
+        state.timers[id].maxTime = partDuration * 60;
+        const timer = state.timers[id];
+        const activeTimer = activeTimers[id];
+        if (op === 'toggle') {
+            timer.running = !timer.running;
+            if (timer.running) {
+                const startTime = Date.now() - (timer.time || 0) * 1000;
+                activeTimers[id] = { 
+                    interval: setInterval(() => {
+                        const newTime = Math.floor((Date.now() - startTime) / 1000);
+                        state.timers[id].time = newTime;
+                        const textDisplay = document.querySelector(`.timer-text[data-timer-id="${id}"]`);
+                        const progressBar = document.querySelector(`.progress-bar[data-timer-id="${id}"]`);
+                        if (textDisplay && progressBar) {
+                            textDisplay.textContent = formatTime(newTime);
+                            const radius = 30;
+                            const circumference = 2 * Math.PI * radius;
+                            const maxTime = state.timers[id].maxTime || 1;
+                            const progress = maxTime > 0 ? Math.min(newTime / maxTime, 1) : 0;
+                            const offset = circumference * (1 - progress);
+                            progressBar.style.strokeDashoffset = offset;
+                            progressBar.classList.remove('color-red', 'color-yellow', 'color-green');
+                            if (progress > 0.95) { progressBar.classList.add('color-red'); }
+                            else if (progress > 0.75) { progressBar.classList.add('color-yellow');}
+                            else { progressBar.classList.add('color-green'); }
+                        }
+                    }, 1000)
+                };
+            } else {
+                if (activeTimer && activeTimer.interval) { clearInterval(activeTimer.interval); }
+                activeTimers[id] = null;
+            }
+        } else if (op === 'reset') {
+            if(activeTimer && activeTimer.interval) { clearInterval(activeTimer.interval); }
+            activeTimers[id] = null;
+            timer.time = 0;
+            timer.running = false;
+        }
+        updateState('timers', { ...state.timers }, (op === 'toggle' || op === 'reset'));
+    }
+
+    function generatePrintableHTML() {
+        const p = state.programma;
+        const getCanticoText = (c) => c ? `Cantico ${c.numero}: ${c.titolo}` : '';
+        const getPartecipanteText = (nome) => nome || '_________';
+        
+        const annunciText = (p.annunci && p.annunci.testo) ? p.annunci.testo : (typeof p.annunci === 'string' ? p.annunci : '');
+
+        return `
+            <div style="padding: 2rem; font-family: sans-serif; color: #111;">
+                <h1 style="font-size: 1.875rem; font-weight: 700; text-align: center; margin-bottom: 2rem; color: #5b21b6;">Programma Adunanza Vita e Ministero</h1>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 1.5rem; font-size: 1.125rem;">
+                    <div><strong>Cantico iniziale:</strong> ${getCanticoText(p.canticoIniziale)}</div>
+                    <div><strong>Preghiera iniziale:</strong> ${getPartecipanteText(p.preghieraIniziale)}</div>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;"><strong style="font-size: 1.125rem;">Introduzione:</strong><div style="margin-top: 0.25rem;">${p.introduzione}</div></div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: #0891b2;">TESORI DELLA PAROLA DI DIO</h2>
+                    <div style="padding-left: 1rem; border-left: 4px solid #0891b2;">
+                        <p style="margin: 0.5rem 0;"><strong>Discorso:</strong> ${p.tesori.discorso.tema} (${getPartecipanteText(p.tesori.discorso.oratore)})</p>
+                        <p style="margin: 0.5rem 0;"><strong>Gemme Spirituali:</strong> ${getPartecipanteText(p.tesori.gemme.conduttore)}</p>
+                         <p style="margin: 0.5rem 0;"><strong>Lettura biblica:</strong> ${getPartecipanteText(p.tesori.lettura.lettore)}</p>
+                    </div>
+                </div>
+                
+                 <div style="margin-bottom: 1.5rem;">
+                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: #ca8a04;">EFFICACI NEL MINISTERO</h2>
+                    <div style="padding-left: 1rem; border-left: 4px solid #ca8a04;">
+                        ${p.ministero.map(part => `<p style="margin: 0.5rem 0;"><strong>${part.tipo}:</strong> ${getPartecipanteText(part.studente)} / ${getPartecipanteText(part.assistente)} - <em>${part.contesto}</em></p>`).join('')}
+                    </div>
+                </div>
+                
+                <div style="text-align: center; font-size: 1.125rem; margin: 1.5rem 0;"><strong>Cantico intermedio:</strong> ${getCanticoText(p.canticoIntermedio)}</div>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: #b91c1c;">VITA CRISTIANA</h2>
+                     <div style="padding-left: 1rem; border-left: 4px solid #b91c1c;">
+                         ${p.vitaCristiana.map(part => {
+                            if (state.supervisorVisit && part.tipo === 'Studio Biblico') { return `<p style="margin: 0.5rem 0;"><strong>Discorso di servizio:</strong> ${getPartecipanteText(part.tema)}</p>`; }
+                            if (part.tipo === 'Studio Biblico') { return `<p style="margin: 0.5rem 0;"><strong>Studio biblico:</strong> ${getPartecipanteText(part.conduttore)}</p>`; }
+                            return `<p style="margin: 0.5rem 0;"><strong>${part.tema}:</strong> ${getPartecipanteText(part.conduttore)}</p>`;
+                        }).join('')}
+                    </div>
+                </div>
+                
+                 <div style="margin-bottom: 1.5rem;">
+                    <h2 style="font-size: 1.25rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; color: #5b21b6;">Riepilogo e Annunci</h2>
+                     <div style="margin-top: 0.25rem;">${p.riepilogo}</div>
+                    <div style="margin-top: 1rem;">${p.anticipazioni}</div>
+                    <div style="margin-top: 1rem;">${annunciText}</div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; font-size: 1.125rem;">
+                     <div><strong>Cantico finale:</strong> ${getCanticoText(p.canticoFinale)}</div>
+                    <div><strong>Preghiera finale:</strong> ${getPartecipanteText(p.preghieraFinale)}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    // --- INIZIALIZZAZIONE ---
+    document.addEventListener('DOMContentLoaded', () => {
+        loadState();
+        attachEventListeners();
+        render(); 
+    });
+    </script>
+</body>
+</html>
